@@ -1,0 +1,1503 @@
+import os
+from itertools import islice
+import sys
+import time
+import random as r
+from tkinter import *
+from functools import partial
+from tkinter import messagebox as error
+import re
+import tkinter as tk
+import smtplib
+from email.message import EmailMessage
+import datetime
+
+g=0
+gmail_user = "Databasepythonprogram@gmail.com"
+gmail_pass = "pythonDataBase007!"
+s=0
+account= []
+a=0
+alphabet = "1234567890@.abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ!$%^&*()_+-=/*:;~#?>,<\{}[] """
+letter_to_index = dict(zip(alphabet, range(len(alphabet))))
+index_to_letter = dict(zip(range(len(alphabet)), alphabet))
+regex = '^[a-z0-9]+[\._]?[a-z0-9]+[@]\w+[.]\w{2,3}$'
+
+##Creates a new file for the database if it isnt found and goes to filereader to get the nested dictionary filled up
+def filecreator():
+    f=open('accounts_project.txt', "w")
+    f.close()
+    filereader()
+
+##when the username is entered, it searches the file for the time the account was made, uses that for encryption and compares it to the encrypted password inside the file
+def loginencrypt(user, passwd):
+    global accounts
+    hour = accounts[user].get("hour")
+    hour = int(hour)
+    minute = accounts[user].get("minute")
+    minute = int(minute)
+    second = accounts[user].get("seconds")
+    second = int(second)
+    encrypted = ""
+    split_message = [
+        passwd[i : i + len(user)] for i in range(0, len(passwd), len(user))
+    ]
+    for each_split in split_message:
+        i = 0
+        for letter in each_split:
+            number = (letter_to_index[letter] - hour + letter_to_index[user[i]] +  minute - second - i) % len(alphabet)
+            encrypted += index_to_letter[number]
+            i += 1
+    return encrypted
+
+##these parts use lists, files
+##this gets the account that the user wants to delete, compares it to the list containing each account and deletes the one wanted to delete without destroying the file
+def deleteccsaver(backup):
+    with open('accounts_project.txt','r+') as f:
+        contents = f.read().split("\n")
+        if backup in contents:
+            contents.remove(backup)
+        new_contents = "\n".join(contents)
+    with open('accounts_project.txt','w+') as f:
+        f.write(new_contents)
+    resetlogin()
+   
+##this saves the locked accounts so that the user cant access their accounts into the file and resets itself.
+def backupsaver(lockaccount, backup):
+    with open('accounts_project.txt','r+') as f:
+        newline=[]
+        for line in f.readlines():
+            newline.append(line.replace(backup, lockaccount))
+        newline= "".join(newline)
+    with open('accounts_project.txt','w+') as f:
+        for line in newline:
+            f.writelines(line)    
+    resetlogin()
+
+##this unlocks the accounts so that the user has controll of it again
+def unlocker(unlock, back):
+    unlock = str(unlock)
+    back = str(back)
+    with open('accounts_project.txt','r+') as f:
+        newline=[]
+        for line in f.readlines():
+            newline.append(line.replace(back, unlock))
+        newline= "".join(newline)
+    with open('accounts_project.txt','w+') as f:
+        for line in newline:
+            f.writelines(line)    
+    resetlogin()
+
+##uses nested dictionaries, lists, time, emails
+##this gets lists ready with who to unlock and sends a email to the user (if it is added stating that their account was unlocked) and sends the lists to unlocker so that the user is allowed back in    
+def delete_lock(user):
+    global unlock
+    global back
+    global accounts
+    if accounts[user].get("email") != "no":
+        emails = accounts[user].get("email")
+        t =time.localtime()
+        timesa = time.strftime("%d:%H:%M:%S")
+        msg = EmailMessage()
+        msg['Subject'] = "Database"
+        msg['From'] = gmail_user
+        msg['To'] = [emails]
+        message = "YOOHOO\n your account has just been unlocked so don't worry about the password"
+        msg.set_content(message)
+        passwd = accounts[user].get("password")
+        email = accounts[user].get("email")
+        hour = accounts[user].get("hour")
+        minute = accounts[user].get("minute")
+        second = accounts[user].get("seconds")
+        lock = "n"
+        today = "00:00:00:00"
+        unlock.append(user)
+        unlock.append(passwd)
+        unlock.append(email)
+        unlock.append(hour)
+        unlock.append(minute)
+        unlock.append(second)
+        unlock.append(lock)
+        unlock.append(today)    
+        unlock = ("|".join(unlock))
+        lock = accounts[user].get("lock")
+        today= accounts[user].get("today")
+        back.append(user)
+        back.append(passwd)
+        back.append(email)
+        back.append(hour)
+        back.append(minute)
+        back.append(second)
+        back.append(lock)
+        back.append(today)
+        back = ("|".join(back))
+        unlocker(unlock, back)
+    else:
+        passwd = accounts[user].get("password")
+        email = accounts[user].get("email")
+        hour = accounts[user].get("hour")
+        minute = accounts[user].get("minute")
+        second = accounts[user].get("seconds")
+        lock = "n"
+        today = "00:00:00:00"
+        unlock.append(user)
+        unlock.append(passwd)
+        unlock.append(email)
+        unlock.append(hour)
+        unlock.append(minute)
+        unlock.append(second)
+        unlock.append(lock)
+        unlock.append(today)    
+        unlock = ("|".join(unlock))
+        lock = accounts[user].get("lock")
+        today= accounts[user].get("today")
+        back.append(user)
+        back.append(passwd)
+        back.append(email)
+        back.append(hour)
+        back.append(minute)
+        back.append(second)
+        back.append(lock)
+        back.append(today)
+        back = ("|".join(back))
+        unlocker(unlock, back)
+
+##this uses lists, emails, nested dictionaries    
+##this adds the lock to the users name and goes to backupsaver to save the configuration  
+def update_lock(user):
+    global gmail_user
+    global gmail_pass
+    global lockaccount
+    global backup
+    global accounts
+    if accounts[user].get("email") != "no":
+        emails = accounts[user].get("email")
+        t =time.localtime()
+        timesa = time.strftime("%d:%H:%M:%S")
+        msg = EmailMessage()
+        msg['Subject'] = "Database"
+        msg['From'] = gmail_user
+        msg['To'] = [emails]
+        message = "This is an update to notify you that someone tried to get into your account %s \n so we have locked it for one day but they didnt get your password\n do not reply \nto unlock it please contact the admin" % user
+        msg.set_content(message)
+        s = smtplib.SMTP_SSL('smtp.gmail.com', 465)
+        s.ehlo()
+        s.login(gmail_user, gmail_pass)
+        s.send_message(msg)
+        s.quit()
+        passwd = accounts[user].get("password")
+        email = accounts[user].get("email")
+        hour = accounts[user].get("hour")
+        minute = accounts[user].get("minute")
+        second = accounts[user].get("seconds")
+        lock = "y"
+        t = time.localtime()
+        today = time.strftime("%d")
+        today= int(today)+1
+        today=str(today)
+        tohour = time.strftime("%H")
+        tominute = time.strftime("%M")
+        tosecond = time.strftime("%S")
+        todays = []
+        todays.append(today)
+        todays.append(tohour)
+        todays.append(tominute)
+        todays.append(tosecond)
+        today=str(todays)
+        today=":".join(todays)
+        lockaccount.append(user)
+        lockaccount.append(passwd)
+        lockaccount.append(email)
+        lockaccount.append(hour)
+        lockaccount.append(minute)
+        lockaccount.append(second)
+        lockaccount.append(lock)
+        lockaccount.append(today)
+        lockaccount = ("|".join(lockaccount))
+        lock= "n"
+        today="00:00:00:00"
+        backup.append(user)
+        backup.append(passwd)
+        backup.append(email)
+        backup.append(hour)
+        backup.append(minute)
+        backup.append(second)
+        backup.append(lock)
+        backup.append(today)
+        backup = ("|".join(backup))
+        backupsaver(lockaccount, backup)
+    else:
+        passwd = accounts[user].get("password")
+        email = accounts[user].get("email")
+        hour = accounts[user].get("hour")
+        minute = accounts[user].get("minute")
+        second = accounts[user].get("seconds")
+        lock = "y"
+        t = time.localtime()
+        today = time.strftime("%d")
+        today= int(today)+1
+        today=str(today)
+        tohour = time.strftime("%H")
+        tominute = time.strftime("%M")
+        tosecond = time.strftime("%S")
+        todays = []
+        todays.append(today)
+        todays.append(tohour)
+        todays.append(tominute)
+        todays.append(tosecond)
+        today=str(todays)
+        today=":".join(todays)
+        lockaccount.append(user)
+        lockaccount.append(passwd)
+        lockaccount.append(email)
+        lockaccount.append(hour)
+        lockaccount.append(minute)
+        lockaccount.append(second)
+        lockaccount.append(lock)
+        lockaccount.append(today)
+        lockaccount = ("|".join(lockaccount))
+        lock= "n"
+        today="00:00:00:00"
+        backup.append(user)
+        backup.append(passwd)
+        backup.append(email)
+        backup.append(hour)
+        backup.append(minute)
+        backup.append(second)
+        backup.append(lock)
+        backup.append(today)
+        backup = ("|".join(backup))
+        backupsaver(lockaccount, backup)
+
+##not yet implemented but will be in the near future
+def login_screen(user):
+    error.showerror("Logged in","\n Welcome to your account, %s. \n"%user)
+    resetlogin()
+
+##uses popup error messages
+##this verifies the code sent the email if added when trying to log in
+def verify_codelogin(rcode,code, user):
+    global g
+    codes =code.get()
+    if codes == rcode:
+        login_screen(user)
+    else:
+        if g==5:
+            error.showerror("Locked","This account is locked")
+            accounts[user]["lock"]="y"
+            update_lock(user)
+        else:
+            g+=1
+            error.showerror("Invalid code","Please enter a valid code")
+
+##uses tkinter        
+##this asks the user for the code sent to their email if added      
+def verify_login(rcode, user):
+    emails = accounts[user].get("email")
+    emaila = len(emails)-13
+    emailb = emails[0:3]
+    emailc= 0
+    emaild = emails[-10:]
+    emaile= []
+    emaile.append(emailb)
+    for emailc in range(emaila):
+        emaile.append("*")
+        emailc+=1
+    emaile.append(emaild)
+    emaile = ("".join(emaile))
+    emailchecke = tk.Toplevel()
+    emailchecke.geometry("400x150")
+    emailchecke.title("Verify Email")
+    codeLabel = Label(emailchecke, text="code sent to email:")
+    codeLabel.grid(row=1, column=0)
+    code = IntVar()
+    codeEntry = Entry(emailchecke, textvariable=code)
+    codeEntry.grid(row=1, column=1)  
+    Code = partial(verify_codelogin, rcode, code, user)
+    EntercodeButton = Button(emailchecke, text="SignUp", command=Code).grid(row=2, column=1)
+    noteLabel = Label(emailchecke, text="Please enter the code sent to %s "% emaile).grid(row=0, column=0)
+    emailchecke.mainloop()    
+
+##this sends the code to the email and if the attempts exceed 5 tries then the account is locked and the user is notified    
+##this sends data to loginencrypt to encrypt the password but also it compares data.
+def find_login(user, passwd):
+    global gmail_user
+    global gmail_pass
+    global s
+    global accounts
+    userexist = accounts.get(user)
+    if userexist:
+        encrypt = loginencrypt(user, passwd)
+        if accounts[user]["lock"]=="n":
+            if accounts[user]["password"] == encrypt:
+                if accounts[user].get("email")!="no":
+                    emails = accounts[user].get("email")
+                    rcode=r.randint(1000,10000)
+                    msg = EmailMessage()
+                    msg['Subject'] = "Database"
+                    msg['From'] = gmail_user
+                    msg['To'] = [emails]
+                    message = "Hi "+user+", here is your code to verify your login: %s" %rcode
+                    msg.set_content(message)
+                    s = smtplib.SMTP_SSL('smtp.gmail.com', 465)
+                    s.ehlo()
+                    s.login(gmail_user, gmail_pass)
+                    s.send_message(msg)
+                    s.quit()
+                    verify_login(rcode,user)
+                else:
+                    login_screen(user)
+            else:
+                error.showerror("Invalid Password","Wrong Password")
+                if s == 5:
+                    error.showerror("Run","The real user of this account was contacted")
+                    accounts[user]["lock"]="y"
+                    update_lock(user)
+                else:
+                    s+=1
+        else:
+            end_time = accounts[user].get("today")
+            start_time = datetime.datetime.now().strftime("%d:%H:%M:%S")
+            total_time =(datetime.datetime.strptime(end_time,'%d:%H:%M:%S') - datetime.datetime.strptime(start_time, '%d:%H:%M:%S'))
+            total_time = str(total_time)
+            if total_time > "0":
+                error.showerror("This account was locked","Please contact the admin to unlock your account.\n It will get unlocked in %s" % total_time)
+            else:
+                error.showerror("We are unlocking your account","Please give us a moment to unlock your account")
+                delete_lock(user)                      
+    else:
+        error.showerror("Invalid account","Please Signup Instead")
+
+##does the same thing as loginencrypt but does this when your signing up
+##this encrypts the password to be stored inside of the database        
+def encrypt(passwd, user, hour, minute, second):
+    encrypted = ""
+    split_message = [
+        passwd[i : i + len(user)] for i in range(0, len(passwd), len(user))
+    ]
+    for each_split in split_message:
+        i = 0
+        for letter in each_split:
+            number = (letter_to_index[letter] - hour + letter_to_index[user[i]] +  minute - second - i) % len(alphabet)
+            encrypted += index_to_letter[number]
+            i += 1
+    return encrypted
+
+##this opens the file and gets all the data from it (seperated by |)in the form of a nested dictionary.
+def filereader():
+    global accounts
+    accounts = {}
+    with open("accounts_project.txt", 'r') as f:
+        for line in f:
+            listDetails = line.strip().split('|')
+            usernames = listDetails[0]
+            accounts[usernames] = {"username": listDetails[0]}
+            accounts[usernames].update({"password": listDetails[1]})
+            accounts[usernames].update({"email": listDetails[2]})
+            accounts[usernames].update({"hour": listDetails[3]})
+            accounts[usernames].update({"minute": listDetails[4]})
+            accounts[usernames].update({"seconds": listDetails[5]})
+            accounts[usernames].update({"lock": listDetails[6]})
+            accounts[usernames].update({"today": listDetails[7]})
+    loginpopup()
+
+##this gets all the data made by signing up the account and seperates it with a | and saves it inside the file
+def filesaver(account, login):
+    global accounts
+    save = ("|".join(account)+"\n")
+    f=open('accounts_project.txt', "a")
+    f.write(save)
+    f.close()
+    del account[0:8]
+    reset()
+   
+##this checks if a username is entered and if the password is long enough
+def login(username, password):
+    user = username.get()
+    passwd = password.get()
+    if len(user)==0:
+        error.showerror("error","Please enter a username")
+    elif len(passwd)<7:
+        error.showerror("To short","The minimun character length is 7 characters long")
+       
+    else:
+        find_login(user, passwd)
+
+##this resets the login window
+def resetlogin():
+    global s
+    global g
+    global tkWindow
+    g=0
+    s=0
+    tkWindow.destroy()
+    filereader()
+
+##this does the same but after signing up so only the login window is visible      
+def reset():
+    global tkWindow
+    global signupas
+    signupas.destroy()
+    tkWindow.destroy()
+    filereader()
+
+##does the same as verify_codelogin  but when signing up so there is no fear of locking the account
+def verify_code(rcode, emails, code, account, login, user):
+    codes = code.get()
+    if codes == rcode:
+        account.insert(2,emails)
+        error.showerror("Correct","Your account is now confirmed", icon ="info")
+        msg = EmailMessage()
+        msg['Subject'] = "Database"
+        msg['From'] = gmail_user
+        msg['To'] = [emails]
+        message = "Your account %s was made successfully" %user
+        msg.set_content(message)
+        s = smtplib.SMTP_SSL('smtp.gmail.com', 465)
+        s.ehlo()
+        s.login(gmail_user, gmail_pass)
+        s.send_message(msg)
+        s.quit()
+        filesaver(account, login)
+    else:
+        error.showerror("Invalid code","The code you have entered is invalid")
+
+##in case someone changes their mind and doesn't want to add their email  
+def cancel(account,login):
+    emails = "no"
+    account.insert(2,"emails")
+    error.showerror("You can add it later","You can always add your email later under Update Account? option")
+    filesaver(account, login)
+
+##does the same as verify_login    
+def sender(rcode, emails , account, login, user):
+    emaila = len(emails)-13
+    emailb = emails[0:3]
+    emailc= 0
+    emaild = emails[-10:]
+    emaile= []
+    emaile.append(emailb)
+    for emailc in range(emaila):
+        emaile.append("*")
+        emailc+=1
+    emaile.append(emaild)
+    emaile = ("".join(emaile))
+    emailchecke = tk.Toplevel()
+    emailchecke.geometry("400x150")
+    emailchecke.title("Verify Email")
+    codeLabel = Label(emailchecke, text="code sent to email:")
+    codeLabel.grid(row=1, column=0)
+    code = IntVar()
+    codeEntry = Entry(emailchecke, textvariable=code)
+    codeEntry.grid(row=1, column=1)  
+    Code = partial(verify_code, rcode, emails, code, account, login, user)
+    EntercodeButton = Button(emailchecke, text="SignUp", command=Code).grid(row=2, column=1)
+    Cancel = partial(cancel, account, login)
+    CancelButton = Button(emailchecke, text="Cancel", command=Cancel).grid(row=2, column=0)
+    noteLabel = Label(emailchecke, text="Please enter the code sent to %s "% emaile).grid(row=0, column=0)
+    emailchecke.mainloop()    
+
+##sends code to user for verification
+def checkuser_email(account, emails, login, user):
+    global signupas
+    global accounts
+    global gmail_user
+    global gmail_pass
+    rcode=r.randint(1000,10000)
+    msg = EmailMessage()
+    msg['Subject'] = "Database"
+    msg['From'] = gmail_user
+    msg['To'] = [emails]
+    message = "Hi thank you for creating your account with us "+ user+"\n but here is your code to verify your email:\n %s" %rcode
+    msg.set_content(message)
+    s = smtplib.SMTP_SSL('smtp.gmail.com', 465)
+    s.ehlo()
+    s.login(gmail_user, gmail_pass)
+    s.send_message(msg)
+    s.quit()
+    sender(rcode,emails, account, login, user)
+
+##checks if email contains a @ sign and and sends the code for verification .
+def verifysignup(newemail,account, user):
+    global signupas
+    global accounts
+    global gmail_user
+    global gmail_pass
+    emails = newemail.get()
+    if len(emails)>0:
+        if not re.match(r"^[A-Za-z0-9\.\+_-]+@[A-Za-z0-9\._-]+\.[a-zA-Z]*$", emails):
+            error.showerror("Invalid email","Please enter a valid email")
+        else:
+            rcode=r.randint(1000,10000)
+            msg = EmailMessage()
+            msg['Subject'] = "Database"
+            msg['From'] = gmail_user
+            msg['To'] = [emails]
+            message = "Hi thank you for creating your account with us "+ user+"\n but here is your code to verify your email:\n %s" %rcode
+            msg.set_content(message)
+            s = smtplib.SMTP_SSL('smtp.gmail.com', 465)
+            s.ehlo()
+            s.login(gmail_user, gmail_pass)
+            s.send_message(msg)
+            s.quit()
+            sender(rcode,emails, account, login, user)
+    else:
+        error.showerror("Invalid email","Please enter a valid email")
+   
+##this checks if the user exists, username is entered and password for registration, checks if email is entered and if the email exists and adds their account which is to be saved inside the file
+def popup(username,password,var1, email, var2):
+    global accounts
+    global account
+    global gmail_user
+    global gmail_pass
+    checklist= var1.get()
+    user = username.get()
+    passwd = password.get()
+    global emails
+    emails = email.get()
+    login = var2
+    if len(user) == 0:
+        error.showerror("Invalid username","Please enter a username")
+    elif len(user) >0:
+        if len(passwd) < 7:
+            error.showerror("error","Password isn't 7 characters long")
+        else:
+            userexists = accounts.get(user)
+            if userexists:
+                error.showerror("username exists","Username already exists\n please login instead")
+            else:
+                if checklist == 1 :
+                    if len(emails)==0:
+                        error.showerror("error","Enter email")
+                    elif len(emails)>0:
+                        if not re.match(r"^[A-Za-z0-9\.\+_-]+@[A-Za-z0-9\._-]+\.[a-zA-Z]*$", emails):
+                            error.showerror("Invalid email","Please enter a valid email")
+                        else:
+                            account.append(user)
+                            hour = time.strftime("%H")
+                            hour = int(hour)
+                            minute = time.strftime("%M")
+                            minute = int(minute)
+                            second = time.strftime("%S")
+                            second = int(second)
+                            lock= "n"
+                            today="00:00:00:00"  
+                            encrypted_pass = encrypt(passwd, user, hour, minute, second)
+                            account.insert(1, encrypted_pass)
+                            hour= str(hour)
+                            minute= str(minute)
+                            second = str(second)
+                            account.append(hour)
+                            account.append(minute)
+                            account.append(second)
+                            account.append(lock)
+                            account.append(today)
+                            checkuser_email(account, emails, login, user)
+                else:
+                    if checklist ==0 and len(emails) >0:
+                        if not re.match(r"^[A-Za-z0-9\.\+_-]+@[A-Za-z0-9\._-]+\.[a-zA-Z]*$", emails):
+                            error.showerror("Invalid email","Please enter a valid email")
+                        else:
+                            global gmail_user
+                            global gmail_pass
+                            account.append(user)
+                            hour = time.strftime("%H")
+                            hour = int(hour)
+                            minute = time.strftime("%M")
+                            minute = int(minute)
+                            second = time.strftime("%S")
+                            second = int(second)
+                            lock= "n"
+                            today="00:00:00:00"  
+                            encrypted_pass = encrypt(passwd, user, hour, minute, second)
+                            account.insert(1, encrypted_pass)
+                            hour= str(hour)
+                            minute= str(minute)
+                            second = str(second)
+                            account.append(hour)
+                            account.append(minute)
+                            account.append(second)
+                            account.append(lock)
+                            account.append(today)
+                            checkuser_email(account, emails, login, user)
+                    else:    
+                        if error.askyesno("Are you sure?", "Are you sure? \nIt will be harder to retrieve your account.\n You can always add it later", icon='error')==True:
+                            account.append(user)
+                            emaila = "no"
+                            t= time.localtime()
+                            account.append(emaila)
+                            hour = time.strftime("%H")
+                            hour = int(hour)
+                            minute = time.strftime("%M")
+                            minute = int(minute)
+                            second = time.strftime("%S")
+                            second = int(second)
+                            lock= "n"
+                            today="00:00:00:00"
+                            encrypted_pass = encrypt(passwd, user, hour, minute, second)
+                            account.insert(1, encrypted_pass)
+                            hour= str(hour)
+                            minute= str(minute)
+                            second = str(second)
+                            account.append(hour)
+                            account.append(minute)
+                            account.append(second)
+                            account.append(lock)
+                            account.append(today)
+                            filesaver(account, login)
+                        else:
+                            account.append(user)
+                            hour = time.strftime("%H")
+                            hour = int(hour)
+                            minute = time.strftime("%M")
+                            minute = int(minute)
+                            second = time.strftime("%S")
+                            second = int(second)
+                            lock= "n"
+                            today="00:00:00:00"  
+                            encrypted_pass = encrypt(passwd, user, hour, minute, second)
+                            account.insert(1, encrypted_pass)
+                            hour= str(hour)
+                            minute= str(minute)
+                            second = str(second)
+                            account.append(hour)
+                            account.append(minute)
+                            account.append(second)
+                            account.append(lock)
+                            account.append(today)
+                            enteremail = tk.Toplevel()
+                            enteremail.geometry("200x100")
+                            enteremail.title("Enter email")
+                            usernameasLabel = Label(enteremail, text="Email").grid(row=0, column=0)
+                            newemail = StringVar()
+                            usernameasEntry = Entry(enteremail, textvariable=newemail).grid(row=0, column=1)
+                            continuesase= partial(verifysignup,newemail,account, user)
+                            continuease_button = Button(enteremail, text="Check Email", command=continuesase).grid(row=2, column=1)
+                           
+
+##creates a new account                            
+def signup():
+    global signupas
+    signupas = tk.Toplevel()
+    signupas.geometry('400x200')  
+    signupas.title("Sign Up")
+    usernameLabel = Label(signupas, text="Username")
+    usernameLabel.grid(row=0, column=0)
+    username = StringVar()
+    usernameEntry = Entry(signupas, textvariable=username)
+    usernameEntry.grid(row=0, column=1)  
+    passwordLabel = Label(signupas,text="Password")
+    passwordLabel.grid(row=1, column=0)  
+    password = StringVar()
+    passwordEntry = Entry(signupas, textvariable=password, show='*')
+    passwordEntry.grid(row=1, column=1)
+    var1 = IntVar()
+    Checkbutton(signupas, text="2step verification", variable=var1).grid(row=2, column=0)
+    var2 =0  
+    emailLabel = Label(signupas, text="Email")
+    emailLabel.grid(row=3, column=0)
+    email = StringVar()
+    emailEntry = Entry(signupas, textvariable=email)
+    emailEntry.grid(row=3, column=1)
+    SignUp = partial(popup, username, password, var1, email, var2)
+    signupButton = Button(signupas, text="SignUp", command=SignUp).grid(row=5, column=0)
+    noteLabel = Label(signupas, text="When you type your email\n you enable 2step automatically").grid(row=6 ,column=1)
+    signupas.mainloop()
+
+##this gathers information from the user so that the account gets deleted    
+def deleteaccount(user):
+    backup=[]
+    passwd = accounts[user].get("password")
+    email = accounts[user].get("email")
+    hour = accounts[user].get("hour")
+    minute = accounts[user].get("minute")
+    second = accounts[user].get("seconds")
+    lock = accounts[user].get("lock")
+    today = accounts[user].get("today")
+    backup.append(user.strip("\n"))
+    backup.append(passwd.strip("\n"))
+    backup.append(email.strip("\n"))
+    backup.append(hour.strip("\n"))
+    backup.append(minute.strip("\n"))
+    backup.append(second.strip("\n"))
+    backup.append(lock.strip("\n"))
+    backup.append(today.strip("\n"))
+    backup = ("|".join(backup))
+    if accounts[user].get("email")!="no":
+        emails = accounts[user].get("email")
+        msg = EmailMessage()
+        msg['Subject'] = "Database"
+        msg['From'] = gmail_user
+        msg['To'] = [emails]
+        current_time = time.strftime("%d:%H:%M:%S")
+        message = ("Hi "+user+", Your account was deleted successfully on %s"% current_time)
+        msg.set_content(message)
+        s = smtplib.SMTP_SSL('smtp.gmail.com', 465)
+        s.ehlo()
+        s.login(gmail_user, gmail_pass)
+        s.send_message(msg)
+        s.quit()
+        deleteccsaver(backup)
+    else:
+        error.showerror("Successful","Your account was deleted successfully")
+        deleteccsaver(backup)
+
+##verifies the code entered to the one sent so that deletion of the account occurs
+def verfypassword(rcode,user, code1):
+    global g
+    codes = code1.get()
+    if codes == rcode:
+        error.showerror("Correct","The code you have entered was verified.\n", icon="info")
+        deleteaccount(user)
+    else:
+        if g==5:
+            error.showerror("Invalid","Your request has timed out")
+            resetlogin()
+        else:
+            error.showerror("Invalid","The code you have entered is invalid")
+            g+=1  
+
+##sends code to user's email if added so that their account can get deleted    
+def deleteacco(usernameas, passess1):
+    global accounts
+    global gmail_user
+    global gmail_pass
+    global g
+    user = usernameas.get()
+    passwd = passess1.get()
+    exist= accounts.get(user)
+    if exist:
+        if len(user)==0:
+            error.showerror("Invalid Username","Please enter a username")
+        else:
+            if len(passwd)<7:
+                error.showerror("Too short","The minimum password is 7 characters long")
+            else:
+                passwd = loginencrypt(user,passwd)
+                if accounts[user].get("password")==passwd:
+                    if error.askyesno("Are you sure?", "Are you sure? You will lose your account forever")==True:
+                        if accounts[user].get("email")!="no":
+                            emails = accounts[user].get("email")
+                            rcode=r.randint(1000,10000)
+                            msg = EmailMessage()
+                            msg['Subject'] = "Database"
+                            msg['From'] = gmail_user
+                            msg['To'] = [emails]
+                            message = "Hi "+user+", here is your code to delete your account is: %s" %rcode
+                            msg.set_content(message)
+                            s = smtplib.SMTP_SSL('smtp.gmail.com', 465)
+                            s.ehlo()
+                            s.login(gmail_user, gmail_pass)
+                            s.send_message(msg)
+                            s.quit()
+                            emaila = len(emails)-13
+                            emailb = emails[0:3]
+                            emailc= 0
+                            emaild = emails[-10:]
+                            emaile= []
+                            emaile.append(emailb)
+                            for emailc in range(emaila):
+                                emaile.append("*")
+                                emailc+=1
+                            emaile.append(emaild)
+                            emaile = ("".join(emaile))
+                            emailchecke = tk.Toplevel()
+                            emailchecke.geometry("400x150")
+                            emailchecke.title("Verify Email")
+                            codesLabel = Label(emailchecke, text="code sent to email:")
+                            codesLabel.grid(row=1, column=0)
+                            code1 = IntVar()
+                            codesEntry = Entry(emailchecke, textvariable=code1)
+                            codesEntry.grid(row=1, column=1)  
+                            Codes = partial(verfypassword, rcode,user, code1)
+                            EntercodesButton = Button(emailchecke, text="Update", command=Codes).grid(row=2, column=1)
+                            noteLabel = Label(emailchecke, text="Please enter the code sent to %s "% emaile).grid(row=0, column=0)
+                            emailchecke.mainloop()
+                        else:
+                           deleteaccount(user)
+                    else:
+                        loginpopup()
+                else:
+                    error.showerror("Invalid Password","The Password you have entered is incorrect")
+    else:
+        error.showerror("Doesn't exist","The username you have entered doesn't exist\n Please sign up instead")
+        loginpopup()
+               
+##asks the user to login into their account so that it can continue with deleting the account
+def deleteacc():
+    changepas= tk.Toplevel()
+    changepas.geometry("200x100")
+    changepas.title("Delete account")
+    usernameasLabel = Label(changepas, text="Username").grid(row=0, column=0)
+    usernameas = StringVar()
+    usernameasEntry = Entry(changepas, textvariable=usernameas).grid(row=0, column=1)
+    passesLabel = Label(changepas, text="Password").grid(row=1, column=0)
+    passess1 = StringVar()
+    passesEntry = Entry(changepas, textvariable=passess1, show='*').grid(row=1, column=1)  
+    continuesas= partial(deleteacco,usernameas, passess1)
+    continuea_button = Button(changepas, text="Check Credentials?", command=continuesas).grid(row=2, column=1)
+
+##this adds the new password to the account when the 2 passwords entered match
+def newcpass(user, passw1, passw2):
+    global accounts
+    global gmail_user
+    global gmail_pass
+    password1 = passw1.get()
+    password2 = passw2.get()
+    if len(password1)<7:
+        error.showerror("Too short password","The minimum password is 7 characters long")
+    else:
+        if password1 == password2:
+            lockaccount = []
+            backup=[]
+            passwd = accounts[user].get("password")
+            email = accounts[user].get("email")
+            hour = accounts[user].get("hour")
+            minute = accounts[user].get("minute")
+            second = accounts[user].get("seconds")
+            lock = accounts[user].get("lock")
+            today = accounts[user].get("today")
+            backup.append(user)
+            backup.append(passwd)
+            backup.append(email)
+            backup.append(hour)
+            backup.append(minute)
+            backup.append(second)
+            backup.append(lock)
+            backup.append(today)
+            backup = ("|".join(backup))
+            lock= "n"
+            passwd = password1
+            passwd = loginencrypt(user, passwd)
+            today="00:00:00:00"
+            lockaccount.append(user)
+            lockaccount.append(passwd)
+            lockaccount.append(email)
+            lockaccount.append(hour)
+            lockaccount.append(minute)
+            lockaccount.append(second)
+            lockaccount.append(lock)
+            lockaccount.append(today)
+            lockaccount = ("|".join(lockaccount))
+            if accounts[user].get("email")!="no":
+                emails = accounts[user].get("email")
+                msg = EmailMessage()
+                msg['Subject'] = "Database"
+                msg['From'] = gmail_user
+                msg['To'] = [emails]
+                current_time = time.strftime("%d:%H:%M:%S")
+                message = ("Hi "+user+", Your password was updated successfully on %s"% current_time)
+                msg.set_content(message)
+                s = smtplib.SMTP_SSL('smtp.gmail.com', 465)
+                s.ehlo()
+                s.login(gmail_user, gmail_pass)
+                s.send_message(msg)
+                s.quit()
+                backupsaver(lockaccount, backup)
+            else:
+                backupsaver(lockaccount, backup)
+        else:
+            error.showerror("Password doesn't match","The 2 passwords you have entered don't match")
+
+##this asks the user to enter 2 new passwords so that they will remember it            
+def changpass(user):
+    changingpass = tk.Toplevel()
+    changingpass.geometry("300x200")
+    changingpass.title("Change Password")
+    passw1Label = Label(changingpass, text="New password").grid(row=0, column=0)
+    passw1 = StringVar()
+    passw1Entry = Entry(changingpass, textvariable=passw1, show='*').grid(row=0, column=1)
+    passw2eLabel = Label(changingpass, text="Confirm password").grid(row=1, column=0)
+    passw2 = StringVar()
+    passw2Entry = Entry(changingpass, textvariable=passw2, show='*').grid(row=1, column=1)
+    continuesas= partial(newcpass, user, passw1, passw2)
+    continuea_button = Button(changingpass, text="Confirm?", command=continuesas).grid(row=2, column=1)
+
+##this verifies the code enetered to the one sent so that changing password continues    
+def vrfypassword(rcode,user, code1):
+    global g
+    codes = code1.get()
+    if codes == rcode:
+        error.showerror("Correct","The code you have entered was verified.\n forwarding you to changepass", icon="info")
+        changpass(user)
+    else:
+        if g==5:
+            error.showerror("Invalid","Your request has timed out")
+            resetlogin()
+        else:
+            error.showerror("Invalid","The code you have entered is invalid")
+            g+=1
+
+##this sends a code to the email and asks for the one sent to their email or they cant do that if they have their account locked but have no email assigned
+def chpassword(usernameas, passes1):
+    global accounts
+    global gmail_user
+    global gmail_pass
+    global g
+    user = usernameas.get()
+    passwd = passes1.get()
+    exist= accounts.get(user)
+    if exist:
+        passwd = loginencrypt(user,passwd)
+        if accounts[user].get("password")==passwd:
+            if accounts[user].get("email")!="no":
+                emails = accounts[user].get("email")
+                rcode=r.randint(1000,10000)
+                msg = EmailMessage()
+                msg['Subject'] = "Database"
+                msg['From'] = gmail_user
+                msg['To'] = [emails]
+                message = "Hi "+user+", here is your code to update your email with us: %s" %rcode
+                msg.set_content(message)
+                s = smtplib.SMTP_SSL('smtp.gmail.com', 465)
+                s.ehlo()
+                s.login(gmail_user, gmail_pass)
+                s.send_message(msg)
+                s.quit()
+                emaila = len(emails)-13
+                emailb = emails[0:3]
+                emailc= 0
+                emaild = emails[-10:]
+                emaile= []
+                emaile.append(emailb)
+                for emailc in range(emaila):
+                    emaile.append("*")
+                    emailc+=1
+                emaile.append(emaild)
+                emaile = ("".join(emaile))
+                emailchecke = tk.Toplevel()
+                emailchecke.geometry("400x150")
+                emailchecke.title("Verify Email")
+                codesLabel = Label(emailchecke, text="code sent to email:")
+                codesLabel.grid(row=1, column=0)
+                code1 = IntVar()
+                codesEntry = Entry(emailchecke, textvariable=code1)
+                codesEntry.grid(row=1, column=1)  
+                Codes = partial(vrfypassword, rcode,user, code1)
+                EntercodesButton = Button(emailchecke, text="Update", command=Codes).grid(row=2, column=1)
+                noteLabel = Label(emailchecke, text="Please enter the code sent to %s "% emaile).grid(row=0, column=0)
+                emailchecke.mainloop()                
+            else:
+                lockes = accounts[user].get("today")
+                if lockes != "00:00:00:00":
+                    error.showerror("Locked","This account is locked so you can't do this")
+                else:
+                    changpass(user)
+        else:
+            if g==5:
+                emails = accounts[user].get("email")
+                msg = EmailMessage()
+                msg['Subject'] = "Database"
+                msg['From'] = gmail_user
+                msg['To'] = [emails]
+                current_time = time.strftime("%d:%H:%M:%S")
+                current_time= str(current_time)
+                message = "Hi "+user+", Your account was locked on %s, to unlock it change your password under Update account? option\n."% current_time
+                msg.set_content(message)
+                s = smtplib.SMTP_SSL('smtp.gmail.com', 465)
+                s.ehlo()
+                s.login(gmail_user, gmail_pass)
+                s.send_message(msg)
+                s.quit()
+                error.showerror("Locked","This account is locked")
+                updatelock(user)
+            else:
+                error.showerror("Invalid","The password you have entered is incorrect")
+                g+=1
+           
+    else:
+        error.showerror("Doesn't exist","The username, you have entered doesn't exist.\n Please Signup instead")
+        loginpopup()
+
+##this asks the user to enter the same password and username for verification if it is them    
+def changepassword():
+    changepa= tk.Toplevel()
+    changepa.geometry("200x100")
+    changepa.title("Change Password")
+    usernameasLabel = Label(changepa, text="Username").grid(row=0, column=0)
+    usernameas = StringVar()
+    usernameasEntry = Entry(changepa, textvariable=usernameas).grid(row=0, column=1)
+    passesLabel = Label(changepa, text="Password").grid(row=1, column=0)
+    passes1 = StringVar()
+    passesEntry = Entry(changepa, textvariable=passes1, show='*').grid(row=1, column=1)  
+    continuesas= partial(chpassword,usernameas, passes1)
+    continuea_button = Button(changepa, text="Check Credentials?", command=continuesas).grid(row=2, column=1)
+
+##this verifies the code sent to the new email to the one entered and saves it if they match
+def uemail(rcode,user, code1,emailnew):
+    global accounts
+    codes = code1.get()
+    if rcode == codes:
+        error.showerror("Correct","The code was verified", icon="info")
+        lockaccount = []
+        backup=[]
+        passwd = accounts[user].get("password")
+        email = accounts[user].get("email")
+        hour = accounts[user].get("hour")
+        minute = accounts[user].get("minute")
+        second = accounts[user].get("seconds")
+        lock = accounts[user].get("lock")
+        today = accounts[user].get("today")
+        backup.append(user)
+        backup.append(passwd)
+        backup.append(email)
+        backup.append(hour)
+        backup.append(minute)
+        backup.append(second)
+        backup.append(lock)
+        backup.append(today)
+        backup = ("|".join(backup))
+        lock= "n"
+        today="00:00:00:00"
+        lockaccount.append(user)
+        lockaccount.append(passwd)
+        email = emailnew
+        lockaccount.append(email)
+        lockaccount.append(hour)
+        lockaccount.append(minute)
+        lockaccount.append(second)
+        lockaccount.append(lock)
+        lockaccount.append(today)
+        lockaccount = ("|".join(lockaccount))
+        error.showerror("Done","Your account was updated", icon="info")
+        msg = EmailMessage()
+        emails = emailnew
+        msg['Subject'] = "Database"
+        msg['From'] = gmail_user
+        msg['To'] = [emails]
+        message = "Hi "+user+",Your email was updated or changed successfully"
+        msg.set_content(message)
+        s = smtplib.SMTP_SSL('smtp.gmail.com', 465)
+        s.ehlo()
+        s.login(gmail_user, gmail_pass)
+        s.send_message(msg)
+        s.quit()
+        backupsaver(lockaccount, backup)                  
+    else:
+        error.showerror("Invalid","The code you have entered is invalid")
+
+##this sends the code to the new email for verification
+def vaemail(newemail, user):
+    global accounts
+    global gmail_user
+    global gmail_pass
+    emailnew = newemail.get()
+    if not re.match(r"^[A-Za-z0-9\.\+_-]+@[A-Za-z0-9\._-]+\.[a-zA-Z]*$", emailnew):
+        error.showerror("Invalid Email","The email you have entered is invalid")
+    else:
+        emails = emailnew
+        rcode=r.randint(1000,10000)
+        msg = EmailMessage()
+        msg['Subject'] = "Database"
+        msg['From'] = gmail_user
+        msg['To'] = [emails]
+        message = ("Hi "+user+", here is your code to update your email with us: %s" %rcode)
+        msg.set_content(message)
+        s = smtplib.SMTP_SSL('smtp.gmail.com', 465)
+        s.ehlo()
+        s.login(gmail_user, gmail_pass)
+        s.send_message(msg)
+        s.quit()
+        emaila = len(emails)-13
+        emailb = emails[0:3]
+        emailc= 0
+        emaild = emails[-10:]
+        emaile= []
+        emaile.append(emailb)
+        for emailc in range(emaila):
+            emaile.append("*")
+            emailc+=1
+        emaile.append(emaild)
+        emaile = ("".join(emaile))
+        emailchecke = tk.Toplevel()
+        emailchecke.geometry("400x150")
+        emailchecke.title("Verify Email")
+        codesLabel = Label(emailchecke, text="code sent to email:")
+        codesLabel.grid(row=1, column=0)
+        code1 = IntVar()
+        codesEntry = Entry(emailchecke, textvariable=code1)
+        codesEntry.grid(row=1, column=1)  
+        Codes = partial(uemail, rcode,user, code1, emailnew)
+        EntercodesButton = Button(emailchecke, text="Update", command=Codes).grid(row=2, column=1)
+        noteLabel = Label(emailchecke, text="Please enter the code sent to %s "% emaile).grid(row=0, column=0)
+        emailchecke.mainloop()
+
+##this asks for the new email if the codes sent to the old email match to the one entered        
+def vlupemail(rcode,user, codes2):
+    codes = codes2.get()
+    if codes == rcode:
+        error.showerror("Correct","Codes were verified", icon="info")
+        enteremail = tk.Toplevel()
+        enteremail.geometry("200x100")
+        enteremail.title("Enter email")
+        usernameasLabel = Label(enteremail, text="New email:").grid(row=0, column=0)
+        newemail = StringVar()
+        usernameasEntry = Entry(enteremail, textvariable=newemail).grid(row=0, column=1)
+        continuesase= partial(vaemail,newemail, user)
+        continuease_button = Button(enteremail, text="Check Email?", command=continuesase).grid(row=2, column=1)
+    else:
+        error.showerror("Invalid","The code you have entered is invalid")
+
+##this sends the codes to the old email for verification if the username and password entered match
+def valupemail(usernameas, passes1):
+    global accounts
+    global gmail_user
+    global gmail_pass
+    global g
+    user = usernameas.get()
+    passwd = passes1.get()
+    passwd = loginencrypt(user,passwd)
+    exist = accounts.get(user)
+    if exist:
+        if accounts[user].get("password")==passwd:
+            if accounts[user].get("email")!= "no":
+                emails = accounts[user].get("email")
+                rcode=r.randint(1000,10000)
+                msg = EmailMessage()
+                msg['Subject'] = "Database"
+                msg['From'] = gmail_user
+                msg['To'] = [emails]
+                message = "Hi "+user+", here is your code to update your email with us: %s" %rcode
+                msg.set_content(message)
+                s = smtplib.SMTP_SSL('smtp.gmail.com', 465)
+                s.ehlo()
+                s.login(gmail_user, gmail_pass)
+                s.send_message(msg)
+                s.quit()
+                emaila = len(emails)-13
+                emailb = emails[0:3]
+                emailc= 0
+                emaild = emails[-10:]
+                emaile= []
+                emaile.append(emailb)
+                for emailc in range(emaila):
+                    emaile.append("*")
+                    emailc+=1
+                emaile.append(emaild)
+                emaile = ("".join(emaile))
+                emailchecke = tk.Toplevel()
+                emailchecke.geometry("400x150")
+                emailchecke.title("Verify Email")
+                codesLabel = Label(emailchecke, text="code sent to email:")
+                codesLabel.grid(row=1, column=0)
+                codes2 = IntVar()
+                codesEntry = Entry(emailchecke, textvariable=codes2)
+                codesEntry.grid(row=1, column=1)  
+                Codes = partial(vlupemail, rcode,user, codes2)
+                EntercodesButton = Button(emailchecke, text="Update", command=Codes).grid(row=2, column=1)
+                noteLabel = Label(emailchecke, text="Please enter the code sent to %s "% emaile).grid(row=0, column=0)
+                emailchecke.mainloop()              
+            else:
+                enteremail = tk.Toplevel()
+                enteremail.geometry("200x100")
+                enteremail.title("Enter email")
+                usernameasLabel = Label(enteremail, text="New email").grid(row=0, column=0)
+                newemail = StringVar()
+                usernameasEntry = Entry(enteremail, textvariable=newemail).grid(row=0, column=1)
+                continuesase= partial(vaemail,newemail, user)
+                continuease_button = Button(enteremail, text="Check Email?", command=continuesase).grid(row=2, column=1)        
+        elif len(user)==0 and len(passwd)==0:
+            error.showerror("Invalid Credentials","Please enter credentials")
+        else:
+            if g==5:
+                error.showerror("Locked","This account is locked")
+                update_lock(user)
+            else:
+                error.showerror("Invalid password","Invalid password")
+                g+=1
+    else:
+        error.showerror("Signup","User doesnt exist so please login instead")
+        loginpopup()
+
+##this asks for credentials so that they can be verified    
+def upemail():
+    enterupdates = tk.Toplevel()
+    enterupdates.geometry("200x100")
+    enterupdates.title("Update Email")
+    usernameasLabel = Label(enterupdates, text="Username").grid(row=0, column=0)
+    usernameas = StringVar()
+    usernameasEntry = Entry(enterupdates, textvariable=usernameas).grid(row=0, column=1)
+    passesLabel = Label(enterupdates, text="Password").grid(row=1, column=0)
+    passes1 = StringVar()
+    passesEntry = Entry(enterupdates, textvariable=passes1, show='*').grid(row=1, column=1)  
+    continuesas= partial(valupemail,usernameas, passes1)
+    continuea_button = Button(enterupdates, text="Check Credentials?", command=continuesas).grid(row=2, column=1)  
+
+##this asks for the new password if the 2 passwords are the same but sets boundaries to its length
+def newpass(user, passw1, passw2):
+    global accounts
+    global gmail_user
+    global gmail_pass
+    password1 = passw1.get()
+    password2 = passw2.get()
+    if len(password1)<7:
+        error.showerror("Too short password","The minimum password is 7 characters long")
+    else:
+        if password1 == password2:
+            lockaccount = []
+            backup=[]
+            passwd = accounts[user].get("password")
+            email = accounts[user].get("email")
+            hour = accounts[user].get("hour")
+            minute = accounts[user].get("minute")
+            second = accounts[user].get("seconds")
+            lock = accounts[user].get("lock")
+            today = accounts[user].get("today")
+            backup.append(user)
+            backup.append(passwd)
+            backup.append(email)
+            backup.append(hour)
+            backup.append(minute)
+            backup.append(second)
+            backup.append(lock)
+            backup.append(today)
+            backup = ("|".join(backup))
+            lock= "n"
+            passwd = password1
+            passwd = loginencrypt(user, passwd)
+            today="00:00:00:00"
+            lockaccount.append(user)
+            lockaccount.append(passwd)
+            lockaccount.append(email)
+            lockaccount.append(hour)
+            lockaccount.append(minute)
+            lockaccount.append(second)
+            lockaccount.append(lock)
+            lockaccount.append(today)
+            lockaccount = ("|".join(lockaccount))
+            if accounts[user].get("email")!="no":
+                emails = accounts[user].get("email")
+                msg = EmailMessage()
+                msg['Subject'] = "Database"
+                msg['From'] = gmail_user
+                msg['To'] = [emails]
+                current_time = time.strftime("%d:%H:%M:%S")
+                message = ("Hi "+user+", Your password was reset successfully on %s"% current_time)
+                msg.set_content(message)
+                s = smtplib.SMTP_SSL('smtp.gmail.com', 465)
+                s.ehlo()
+                s.login(gmail_user, gmail_pass)
+                s.send_message(msg)
+                s.quit()
+                backupsaver(lockaccount, backup)
+            else:
+                backupsaver(lockaccount, backup)
+        else:
+            error.showerror("Password doesn't match","The 2 passwords you have entered don't match")
+
+##this asks the user for the code sent to their email if it doesnt match and exceeds 5 tries then the account is locked
+def respasse(rcode,user, code1):
+    global gmail_user
+    global gmail_pass
+    global g
+    codes = code1.get()
+    if codes == rcode:
+        resetpasswod = tk.Toplevel()
+        resetpasswod.geometry('250x100')  
+        resetpasswod.title("Reset password")
+        passw1Label = Label(resetpasswod, text="New password").grid(row=0, column=0)
+        passw1 = StringVar()
+        passw1Entry = Entry(resetpasswod, textvariable=passw1, show='*').grid(row=0, column=1)
+        passw2eLabel = Label(resetpasswod, text="Confirm password").grid(row=1, column=0)
+        passw2 = StringVar()
+        passw2Entry = Entry(resetpasswod, textvariable=passw2, show='*').grid(row=1, column=1)
+        continuesas= partial(newpass, user, passw1, passw2)
+        continuea_button = Button(resetpasswod, text="Confirm?", command=continuesas).grid(row=2, column=1)
+    else:
+        if g ==5:
+            error.showerror("locked","this account is locked")
+            emails = accounts[user].get("email")
+            msg = EmailMessage()
+            msg['Subject'] = "Database"
+            msg['From'] = gmail_user
+            msg['To'] = [emails]
+            current_time = time.strftime("%d:%H:%M:%S")
+            current_time= str(current_time)
+            message = "Hi "+user+", Your account was locked on %s, to unlock it change your password under Update account? option\n."% current_time
+            msg.set_content(message)
+            s = smtplib.SMTP_SSL('smtp.gmail.com', 465)
+            s.ehlo()
+            s.login(gmail_user, gmail_pass)
+            s.send_message(msg)
+            s.quit()
+            update_lock(user)
+        else:
+            error.showerror("Invalid code","Please enter a valid one")
+            g+=1
+
+##this checks if the username matches any accounts and sends a email to the user if it is added with the code for verification and if the email isn't added it lets the user to reset the password    
+def resspass(username):
+    global gmail_user
+    global gmail_pass
+    user= username.get()
+    exist =  accounts.get(user)
+    if exist:
+        if accounts[user].get("email")!="no":
+            emails = accounts[user].get("email")
+            rcode=r.randint(1000,10000)
+            msg = EmailMessage()
+            msg['Subject'] = "Database"
+            msg['From'] = gmail_user
+            msg['To'] = [emails]
+            message = "Hi "+user+", here is your code to change your password: %s" %rcode
+            msg.set_content(message)
+            s = smtplib.SMTP_SSL('smtp.gmail.com', 465)
+            s.ehlo()
+            s.login(gmail_user, gmail_pass)
+            s.send_message(msg)
+            s.quit()
+            emaila = len(emails)-13
+            emailb = emails[0:3]
+            emailc= 0
+            emaild = emails[-10:]
+            emaile= []
+            emaile.append(emailb)
+            for emailc in range(emaila):
+                emaile.append("*")
+                emailc+=1
+            emaile.append(emaild)
+            emaile = ("".join(emaile))
+            emailchecke = tk.Toplevel()
+            emailchecke.geometry("400x150")
+            emailchecke.title("Verify Email")
+            codesLabel = Label(emailchecke, text="code sent to email:")
+            codesLabel.grid(row=1, column=0)
+            code1 = IntVar()
+            codesEntry = Entry(emailchecke, textvariable=code1)
+            codesEntry.grid(row=1, column=1)  
+            Codes = partial(respasse, rcode,user, code1)
+            EntercodesButton = Button(emailchecke, text="Verify", command=Codes).grid(row=2, column=1)
+            noteLabel = Label(emailchecke, text="Please enter the code sent to %s "% emaile).grid(row=0, column=0)
+            emailchecke.mainloop()            
+        else:
+            lockes = accounts[user].get("today")
+            if lockes != "00:00:00:00":
+                error.showerror("Can't do that","This account is locked")
+            else:
+                resetpasswod = tk.Toplevel()
+                resetpasswod.geometry('250x100')  
+                resetpasswod.title("Reset password")
+                passw1Label = Label(resetpasswod, text="New password").grid(row=0, column=0)
+                passw1 = StringVar()
+                passw1Entry = Entry(resetpasswod, textvariable=passw1, show='*').grid(row=0, column=1)
+                passw2eLabel = Label(resetpasswod, text="Confirm password").grid(row=1, column=0)
+                passw2 = StringVar()
+                passw2Entry = Entry(resetpasswod, textvariable=passw2, show='*').grid(row=1, column=1)
+                continuesas= partial(newpass, user, passw1, passw2)
+                continuea_button = Button(resetpasswod, text="Confirm?", command=continuesas).grid(row=2, column=1)
+    elif len(user)==0:
+        error.showerror("Invalid username","Please enter a username")
+    else:
+        error.showerror("Nice Try","The username entered doesn't exist.")
+        resetlogin()
+
+##this asks the user for the username for verification  
+def respass():
+    resetpasswd = tk.Toplevel()
+    resetpasswd.geometry('200x50')  
+    resetpasswd.title("Reset password")
+    usernameLabel = Label(resetpasswd, text="Username").grid(row=0, column=0)
+    username = StringVar()
+    usernameEntry = Entry(resetpasswd, textvariable=username).grid(row=0, column=1)  
+    continuesa= partial(resspass, username)
+    continuea_button = Button(resetpasswd, text="Search for username?", command=continuesa).grid(row=6, column=1)
+
+##not implemented yet as I dont know how to do this
+def foruser():
+    global accounts
+    error.showerror("Sorry we can't do that","We are unable to do your request \n but you can look at the previous messages we have sent you\n from Databasepythonprogram@gmail.com.")
+    resetlogin()
+
+##this decides what the user ticked and sends them there  
+def updator_what(vars2, vars3, vars4, vars5, vars6):
+    changpass = vars2.get()
+    updateemail = vars3.get()
+    resetpass =vars4.get()
+    forgotuser = vars5.get()
+    deleteac = vars6.get()
+    totalwhat = deleteac + changpass+ updateemail + resetpass + forgotuser
+    if totalwhat >1:
+        error.showerror("Invalid selection", "Please pick one of these options")
+    elif totalwhat <1:
+        error.showerror("Invalid selection", "Please pick one of these options")
+    else:
+        if changpass == 1:
+            changepassword()
+        elif updateemail ==1:
+             upemail()
+        elif resetpass ==1:
+            respass()
+        elif forgotuser ==1:
+            foruser()
+        elif deleteac ==1:
+            deleteacc()
+
+##this pops up with a checklist so that the user can decide which option they want and it sends them to the correct tkinter window            
+def reset_pass():
+    updaters = tk.Toplevel()
+    updaters.geometry('300x200')  
+    updaters.title("Update wizard")
+    vars2 = IntVar()
+    Checkbutton(updaters, text="Change Password?", variable=vars2).grid(row=0, column=1)
+    vars3 = IntVar()
+    Checkbutton(updaters, text="Update email?", variable=vars3).grid(row=1, column=1)
+    vars4 = IntVar()
+    Checkbutton(updaters, text="reset password?", variable=vars4).grid(row=2, column=1)
+    vars5 = IntVar()
+    Checkbutton(updaters, text="forgot username?", variable=vars5).grid(row=3, column=1)
+    vars6 = IntVar()
+    Checkbutton(updaters, text="deleteaccount?", variable=vars6).grid(row=4, column=1)
+    noteseLabel = Label(updaters, text="If your account is locked but you verify your account\n It will get unlocked").grid(row=5,column=1)
+    continues= partial(updator_what,vars2, vars3, vars4, vars5, vars6)
+    continue_button = Button(updaters, text="Update account?", command=continues).grid(row=6, column=1)
+   
+##this checks if file is empty: locks the login button so signup is only possible but also allows to update the account                                                      
+def loginpopup():
+    global tkWindow
+    tkWindow = Tk()
+    global accounts
+    print(accounts)
+    tkWindow.geometry('400x150')  
+    tkWindow.title("Database Program")
+    usernameLabel = Label(tkWindow, text="Username").grid(row=0, column=0)
+    username = StringVar()
+    usernameEntry = Entry(tkWindow, textvariable=username).grid(row=0, column=1)  
+    passwordLabel = Label(tkWindow,text="Password").grid(row=1, column=0)  
+    password = StringVar()
+    passwordEntry = Entry(tkWindow, textvariable=password, show='*').grid(row=1, column=1)
+    Login = partial(login, username, password)
+    SignUp = partial(signup)
+    loginButton = Button(tkWindow, text="Login", command=Login)
+    loginButton.grid(row=4, column=0)
+    signupButton = Button(tkWindow, text="SignUp", command=SignUp).grid(row=4, column=1)
+    noteLabel = Label(tkWindow, text="To signup: press signup and add credentials").grid(row=5, column=1)
+    reset_password= partial(reset_pass)
+    resetpass = Button(tkWindow, text="Update account?", command=reset_password).grid(row=7, column=1)
+    noteLabels = Label(tkWindow, text="Press forgot password and enter username").grid(row=8, column=1)
+    global backup
+    backup = []
+    backup.clear()
+    global lockaccount
+    lockaccount = []
+    lockaccount.clear()
+    global unlock
+    unlock = []
+    unlock.clear()
+    global back
+    back = []
+    back.clear()
+    if os.path.getsize('accounts_project.txt') ==0:
+        loginButton['state'] = DISABLED
+    else:
+        loginButton['state'] = NORMAL
+        pass
+    tkWindow.mainloop()
+
+##this controls what to do and if the file exists      
+file = os.path.exists('accounts_project.txt')
+if file == True:
+    filereader()
+else:
+    filecreator()
+
+
