@@ -13,8 +13,8 @@ from email.message import EmailMessage
 import datetime
 
 g=0
-gmail_user = "Databasepythonprogram@gmail.com"
-gmail_pass = "pythonDataBase007!"
+gmail_user = "BobDatabase007@gmail.com"
+gmail_pass = "PythonDatabase007!"
 s=0
 account= []
 a=0
